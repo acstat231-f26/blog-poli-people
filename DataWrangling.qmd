@@ -1,0 +1,35 @@
+---
+title: "Title"
+subtitle: "Optional subtitle"
+author: 
+- "Caleb Kim"
+- "Ayush Maini"
+- "James (Jimmy) Chen"
+- "Michael Li"
+abstract: "A brief abstract summarizing your project is required here. This abstract, along with the first image or figure in your blog, will be used as a preview to your blog on the course's landing page for all the blogs."
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+# Improve digit display and NA display for kable tables
+options(scipen = 1, knitr.kable.NA = "")
+
+# Load necessary packages
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+
+
+```
+
+```{r}
+#| label: data-ingestion
+
+
+
+read_csv()
+
+
+```
