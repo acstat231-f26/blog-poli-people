@@ -1,0 +1,32 @@
+---
+title: "CalebDataWrangling"
+format: html
+editor: visual
+---
+
+
+```{r}
+#| label: setup
+#| include: false
+
+# Improve digit display and NA display for kable tables
+options(scipen = 1, knitr.kable.NA = "")
+
+# Load necessary packages
+library(tidyverse)
+library(tidytext)
+library(mdsr)
+library(knitr)
+library(kableExtra)
+```
+
+
+```{r}
+#| echo: false
+
+OECD <- read_csv("data/OECD.TAD.ADM,DSD_QDD_TAD_EXP_RESTRIC@DF_QDD_TAD_EXP_RESTRIC,3.0,filtered,2026-10-27 21-23-49.csv")
+
+
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
