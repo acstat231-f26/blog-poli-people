@@ -1,12 +1,12 @@
 ---
-title: "Title"
+title: "Data Wrangling Code"
 subtitle: "Optional subtitle"
 author: 
 - "Caleb Kim"
 - "Ayush Maini"
 - "James (Jimmy) Chen"
 - "Michael Li"
-abstract: "A brief abstract summarizing your project is required here. This abstract, along with the first image or figure in your blog, will be used as a preview to your blog on the course's landing page for all the blogs."
+abstract: "Michael Data Wrangling Stuff here"
 ---
 
 ```{r}
@@ -21,15 +21,93 @@ library(tidyverse)
 library(knitr)
 library(kableExtra)
 
+```
+
+```{r}
+#| label: data-ingestion + brief cleaning
+
+#setwd("/Users/michaelli/Documents/GitHub/blog-poli-people/")
+
+merch_imp <- read_csv("data/US.TradeMerchTotal_Imports/Annual_Merchandise_Imports.csv", show_col_types = FALSE)
+merch_exp <- read_csv("data/US.TradeMerchTotal_Exports/Annual_Merchandise_Exports.csv", show_col_types = FALSE)
+total_pop <- read_csv("data/US.PopTotal/Annual_Population.csv", show_col_types = FALSE)
+gdp_bySector <- read_csv("data/US.GDPComponents/GDP_Expenditure_Sector.csv", show_col_types = FALSE)
+
+#--------------------------------------------------------------------------
+# SECTION 1: Merchandise Imports
+#--------------------------------------------------------------------------
+
+merch_imp_data <- merch_imp |>
+  select(Economy_Label, ends_with("Millions_of_US_at_current_prices_Value"))
+
+merch_imp_notes <- merch_imp |>
+  select(Economy_Label, ends_with("Footnote")) |>
+  filter(if_any(ends_with("Footnote"), ~ !is.na(.))) |>
+  select(where(~ any(!is.na(.x))))
+
+merch_imp_missing <- merch_imp |>
+  select(Economy_Label, ends_with("MissingValue")) |>
+  filter(if_any(ends_with("MissingValue"), ~ !is.na(.))) |>
+  select(where(~ any(!is.na(.x))))
+
+#--------------------------------------------------------------------------
+# SECTION 2: Merchandise Exports
+#--------------------------------------------------------------------------
+
+merch_exp_data <- merch_exp |>
+  select(Economy_Label, ends_with("Millions_of_US_at_current_prices_Value"))
+
+merch_exp_notes <- merch_exp |>
+  select(Economy_Label, ends_with("Footnote")) |>
+  filter(if_any(ends_with("Footnote"), ~ !is.na(.))) |>
+  select(where(~ any(!is.na(.x))))
+
+merch_exp_missing <- merch_exp |>
+  select(Economy_Label, ends_with("MissingValue")) |>
+  filter(if_any(ends_with("MissingValue"), ~ !is.na(.))) |>
+  select(where(~ any(!is.na(.x))))
+
+#--------------------------------------------------------------------------
+# SECTION 3: Total Population
+#--------------------------------------------------------------------------
+
+total_pop_data <- total_pop |>
+  select(Economy_Label, ends_with("Absolute_value_in_thousands_Value"))
+
+total_pop_notes <- total_pop |>
+  select(Economy_Label, ends_with("Footnote")) |>
+  filter(if_any(ends_with("Footnote"), ~ !is.na(.))) |>
+  select(where(~ any(!is.na(.x))))
+
+total_pop_missing <- total_pop |>
+  select(Economy_Label, ends_with("MissingValue")) |>
+  filter(if_any(ends_with("MissingValue"), ~ !is.na(.))) |>
+  select(where(~ any(!is.na(.x))))
+
+#--------------------------------------------------------------------------
+# SECTION 4: GDP by Sector
+#--------------------------------------------------------------------------
+
+gdp_data <- gdp_bySector |>
+  select(Economy_Label, Component_Label, ends_with("US_at_current_prices_in_millions_Value"))
+
+gdp_notes <- gdp_bySector |>
+  select(Economy_Label, ends_with("Footnote")) |>
+  filter(if_any(ends_with("Footnote"), ~ !is.na(.))) |>
+  select(where(~ any(!is.na(.x))))
+
+gdp_missing <- gdp_bySector |>
+  select(Economy_Label, ends_with("MissingValue")) |>
+  filter(if_any(ends_with("MissingValue"), ~ !is.na(.))) |>
+  select(where(~ any(!is.na(.x))))
 
 ```
 
 ```{r}
-#| label: data-ingestion
+#| label: data-joining
 
-
-
-read_csv()
-
+merchandise_population <- merch_imp_data |>
+  full_join(merch_exp_data, by = "Economy_Label") |>
+  full_join(total_pop_data, by = "Economy_Label")
 
 ```
