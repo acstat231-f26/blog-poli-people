@@ -20,6 +20,9 @@ options(scipen = 1, knitr.kable.NA = "")
 library(tidyverse)
 library(knitr)
 library(kableExtra)
+library(mapdata)
+library(sf)
+library(viridis)
 
 ```
 
@@ -28,10 +31,10 @@ library(kableExtra)
 
 #setwd("/Users/michaelli/Documents/GitHub/blog-poli-people/")
 
-merch_imp <- read_csv("data/US.TradeMerchTotal_Imports/Annual_Merchandise_Imports.csv", show_col_types = FALSE)
-merch_exp <- read_csv("data/US.TradeMerchTotal_Exports/Annual_Merchandise_Exports.csv", show_col_types = FALSE)
-total_pop <- read_csv("data/US.PopTotal/Annual_Population.csv", show_col_types = FALSE)
-gdp_bySector <- read_csv("data/US.GDPComponents/GDP_Expenditure_Sector.csv", show_col_types = FALSE)
+merch_imp <- read_csv("data/Annual_Merchandise_Imports.csv", show_col_types = FALSE)
+merch_exp <- read_csv("data/Annual_Merchandise_Exports.csv", show_col_types = FALSE)
+total_pop <- read_csv("data/Annual_Population.csv", show_col_types = FALSE)
+gdp_bySector <- read_csv("data/GDP_Expenditure_Sector.csv", show_col_types = FALSE)
 
 #--------------------------------------------------------------------------
 # SECTION 1: Merchandise Imports
@@ -106,8 +109,34 @@ gdp_missing <- gdp_bySector |>
 ```{r}
 #| label: data-joining
 
-merchandise_population <- merch_imp_data |>
-  full_join(merch_exp_data, by = "Economy_Label") |>
-  full_join(total_pop_data, by = "Economy_Label")
+world_map <- maps::map("world", plot = FALSE, fill = TRUE) |>
+  st_as_sf()
 
+merch_imp_clean <- merch_imp_data |>
+  rename_with(~ str_replace(.x, "_Millions_of_US_at_current_prices_Value", "_Imports"), -Economy_Label)
+
+merch_exp_clean <- merch_exp_data |>
+  rename_with(~ str_replace(.x, "_Millions_of_US_at_current_prices_Value", "_Exports"), -Economy_Label)
+
+total_pop_clean <- total_pop_data |>
+  rename_with(~ str_replace(.x, "_Absolute_value_in_thousands_Value", "_Population"), -Economy_Label)
+
+merchandise_population <- merch_imp_clean |>
+  full_join(merch_exp_clean, by = "Economy_Label") |>
+  full_join(total_pop_clean, by = "Economy_Label") |>
+  arrange()
+
+merch_map <- right_join(merchandise_population, world_map, by = join_by(Economy_Label == ID))
+  
+ggplot(merch_map, aes(geometry=geom, fill = `2025_Exports`)) +
+  geom_sf() +
+  scale_fill_viridis(option = "magma", direction = -1,
+                     labels = scales::label_percent()) +
+  theme_void()
+
+ggplot(merch_map, aes(geometry=geom, fill = `2025_Imports`)) +
+  geom_sf() +
+  scale_fill_viridis(option = "magma", direction = -1,
+                     labels = scales::label_percent()) +
+  theme_void()
 ```
