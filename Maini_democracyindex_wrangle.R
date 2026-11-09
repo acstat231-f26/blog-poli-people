@@ -1,6 +1,6 @@
 
 library(tidyverse)
-democracy_raw <- read_csv("EIU_DI_WIDEF.csv")
+democracy_raw <- read_csv("data/EIU_DI_WIDEF.csv")
 glimpse(democracy_raw)
 
 
@@ -39,9 +39,63 @@ democracy_tidy |>
 
 
 dir.create("data", showWarnings = FALSE)
-
+# create csv
 write_csv(
   democracy_tidy,
   "data/democracy_index_tidy.csv"
 )
+
+#clustering below, November 9th.
+imports <- read_csv("data/Annual_Merchandise_Imports.csv") |>
+  select(Economy_Label, 
+         imports = '2024_Millions_of_US_at_current_prices_Value')
+
+exports <- read_csv("data/Annual_Merchandise_Exports.csv") |>
+  select(Economy_Label,
+         exports = `2024_Millions_of_US_at_current_prices_Value`)
+
+population <- read_csv("data/Annual_Population.csv") |>
+  select(Economy_Label,
+         population = `2024_Absolute_value_in_thousands_Value`)
+
+
+trade_data <- democracy_tidy |>
+  filter(year == 2024) |>
+  inner_join(imports, by = c("country_name" = "Economy_Label")) |>
+  inner_join(exports, by = c("country_name" = "Economy_Label")) |>
+  inner_join(population, by = c("country_name" = "Economy_Label")) |>
+  filter(!is.na(democracy_index),
+         !is.na(imports),
+         !is.na(exports),
+         !is.na(population),
+         population > 0,
+         imports + exports > 0) |>
+  mutate(
+    trade_per_person = 1000 * (imports + exports) / population,
+    export_share = exports / (imports + exports),
+    log_trade = log10(trade_per_person)
+  )
+
+
+set.seed(231)
+
+trade_data$cluster <- as.factor(kmeans(
+  scale(trade_data |> select(log_trade, export_share)),
+  centers = 3,
+  nstart = 20
+)$cluster)
+
+
+ggplot(trade_data,
+       aes(x = trade_per_person, y = democracy_index,
+           color = cluster)) +
+  geom_point(size = 2, alpha = 0.7) +
+  scale_x_log10() +
+  labs(
+    title = "International Trade and Democracy (2024)",
+    x = "Merchandise Trade per Person (USD, log scale)",
+    y = "Democracy Index",
+    color = "Cluster"
+  ) +
+  theme_minimal()
 
