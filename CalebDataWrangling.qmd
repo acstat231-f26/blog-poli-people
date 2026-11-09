@@ -4,7 +4,6 @@ format: html
 editor: visual
 ---
 
-
 ```{r}
 #| label: setup
 #| include: false
@@ -18,15 +17,32 @@ library(tidytext)
 library(mdsr)
 library(knitr)
 library(kableExtra)
+library(lubridate)
 ```
-
 
 ```{r}
 #| echo: false
 
+#upload csv
 OECD <- read_csv("data/OECD.TAD.ADM,DSD_QDD_TAD_EXP_RESTRIC@DF_QDD_TAD_EXP_RESTRIC,3.0,filtered,2026-10-27 21-23-49.csv")
 
+#wrangle data so that each case represents a single policy
+OECD_policies <- OECD |>
+  pivot_wider(
+    id_cols = c(REF_AREA, `Reference area`, COMMODITY, Commodity, POLICY_TYPE, `Policy type`, POLICY_VARIATION, `Policy changes`, TIME_PERIOD),
+    names_from = POLICY_DESCRIPTION,
+    values_from = OBS_VALUE
+    ) |>
+  mutate(
+    Id = row_number(),
+    Interval = interval(DATI, END)
+         )
 
+unique(OECD_policies$`Policy type`)
+
+#wrangle data so that each case represents a country at a certain year (how many restrictions do they have actively imposed on them at the time?)
+OECD_countryDates <- OECD_policies |>
+  group_by(REF_AREA, )
 ```
 
 The `echo: false` option disables the printing of code (only output is displayed).

@@ -48,3 +48,8 @@ rsconnect/
 /.quarto/
 
 **/*.quarto_ipynb
+
+
+
+# large raw OECD download - not committed
+data/OECD.TAD.ADM,DSD_QDD_TAD_EXP_RESTRIC@DF_QDD_TAD_EXP_RESTRIC,3.0,*.csv
