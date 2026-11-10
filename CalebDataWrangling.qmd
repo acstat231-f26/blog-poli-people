@@ -17,14 +17,20 @@ library(tidytext)
 library(mdsr)
 library(knitr)
 library(kableExtra)
-library(lubridate)
 ```
 
 ```{r}
 #| echo: false
 
 #upload csv
-OECD <- read_csv("data/OECD.TAD.ADM,DSD_QDD_TAD_EXP_RESTRIC@DF_QDD_TAD_EXP_RESTRIC,3.0,filtered,2026-10-27 21-23-49.csv")
+##filters:
+#time period: select all
+#reference area: select all
+#commodity: select all
+#policy type: select all
+#policy changes: deselect all
+#policy description: deselect all
+OECD <- read_csv("data/OECD.TAD.ADM,DSD_QDD_TAD_EXP_RESTRIC%40DF_QDD_TAD_EXP_RESTRIC,3.0,filtered,2026-11-09 15-04-43.csv")
 
 #wrangle data so that each case represents a single policy
 OECD_policies <- OECD |>
@@ -34,15 +40,21 @@ OECD_policies <- OECD |>
     values_from = OBS_VALUE
     ) |>
   mutate(
-    Id = row_number(),
-    Interval = interval(DATI, END)
-         )
+    Id = row_number()
+    )
 
-unique(OECD_policies$`Policy type`)
+#wrangle `OECD_policies` so that each set of policies that are the same type and relate to the same resource in the same year are the same
+#make sure to note whether a cases is a restriction or exception
+OECD_policies_unique <- OECD_policies |>
+  distinct(REF_AREA, `Reference area`, COMMODITY, Commodity, POLICY_TYPE, `Policy type`, TIME_PERIOD) |>
+  mutate(
+    Restriction_TF = POLICY_TYPE != "NO_RESTRICTION"
+  )
 
-#wrangle data so that each case represents a country at a certain year (how many restrictions do they have actively imposed on them at the time?)
-OECD_countryDates <- OECD_policies |>
-  group_by(REF_AREA, )
+#wrangle data so that each case represents a country at a certain year (sum the number of restrictions in a given year for the country to get the total number in that year)
+OECD_country_years <- OECD_policies_unique |>
+  group_by(REF_AREA, `Reference area`, TIME_PERIOD) |>
+  summarize(`Number of Unique Policies on Unique Resource` = sum(Restriction_TF))
 ```
 
 The `echo: false` option disables the printing of code (only output is displayed).
