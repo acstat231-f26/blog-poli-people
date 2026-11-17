@@ -7,6 +7,7 @@ author:
 - "James (Jimmy) Chen"
 - "Michael Li"
 abstract: "Michael Data Wrangling Stuff here"
+format: pdf
 ---
 
 ```{r}
@@ -23,6 +24,7 @@ library(kableExtra)
 library(mapdata)
 library(sf)
 library(viridis)
+library(countrycode)
 
 ```
 
@@ -30,18 +32,15 @@ library(viridis)
 #| label: data-ingestion + brief cleaning
 
 #setwd("/Users/michaelli/Documents/GitHub/blog-poli-people/")
-
-merch_imp <- read_csv("data/Annual_Merchandise_Imports.csv", show_col_types = FALSE)
-merch_exp <- read_csv("data/Annual_Merchandise_Exports.csv", show_col_types = FALSE)
-total_pop <- read_csv("data/Annual_Population.csv", show_col_types = FALSE)
 gdp_bySector <- read_csv("data/GDP_Expenditure_Sector.csv", show_col_types = FALSE)
 
 #--------------------------------------------------------------------------
 # SECTION 1: Merchandise Imports
 #--------------------------------------------------------------------------
 
-merch_imp_data <- merch_imp |>
-  select(Economy_Label, ends_with("Millions_of_US_at_current_prices_Value"))
+merch_imp <- read_csv("data/Annual_Merchandise_Imports.csv", show_col_types = FALSE) |>
+  select(Economy_Label, ends_with("Millions_of_US_at_current_prices_Value")) |>
+  rename_with(~ str_replace(.x, "_Millions_of_US_at_current_prices_Value", "_Imports"), -Economy_Label)
 
 merch_imp_notes <- merch_imp |>
   select(Economy_Label, ends_with("Footnote")) |>
@@ -57,8 +56,9 @@ merch_imp_missing <- merch_imp |>
 # SECTION 2: Merchandise Exports
 #--------------------------------------------------------------------------
 
-merch_exp_data <- merch_exp |>
-  select(Economy_Label, ends_with("Millions_of_US_at_current_prices_Value"))
+merch_exp <- read_csv("data/Annual_Merchandise_Exports.csv", show_col_types = FALSE) |>
+  select(Economy_Label, ends_with("Millions_of_US_at_current_prices_Value")) |>
+  rename_with(~ str_replace(.x, "_Millions_of_US_at_current_prices_Value", "_Exports"), -Economy_Label)
 
 merch_exp_notes <- merch_exp |>
   select(Economy_Label, ends_with("Footnote")) |>
@@ -74,8 +74,9 @@ merch_exp_missing <- merch_exp |>
 # SECTION 3: Total Population
 #--------------------------------------------------------------------------
 
-total_pop_data <- total_pop |>
-  select(Economy_Label, ends_with("Absolute_value_in_thousands_Value"))
+total_pop <- read_csv("data/Annual_Population.csv", show_col_types = FALSE) |>
+  select(Economy_Label, ends_with("Absolute_value_in_thousands_Value")) |>
+  rename_with(~ str_replace(.x, "_Absolute_value_in_thousands_Value", "_Population"), -Economy_Label)
 
 total_pop_notes <- total_pop |>
   select(Economy_Label, ends_with("Footnote")) |>
@@ -104,39 +105,154 @@ gdp_missing <- gdp_bySector |>
   filter(if_any(ends_with("MissingValue"), ~ !is.na(.))) |>
   select(where(~ any(!is.na(.x))))
 
+#--------------------------------------------------------------------------
+#SECTION 5: Final Joins
+#--------------------------------------------------------------------------
+merchandise_population <- merch_imp |>
+  full_join(merch_exp, by = "Economy_Label") |>
+  full_join(total_pop, by = "Economy_Label") |>
+  arrange()
+
+merchandise_population
+```
+
+```{r}
+#| echo: false
+#upload csv
+##filters:
+#time period: select all
+#reference area: select all
+#commodity: select all
+#policy type: select all
+#policy changes: deselect all
+#policy description: deselect all
+
+#wrangle data so that each case represents a single policy
+OECD_country_years <- read_csv("data/OECD.TAD.ADM,DSD_QDD_TAD_EXP_RESTRIC@DF_QDD_TAD_EXP_RESTRIC,3.0,filtered,2026-10-27 21-23-49.csv", show_col_types = FALSE) |>
+  pivot_wider(
+    id_cols = c(REF_AREA, `Reference area`, COMMODITY, Commodity, POLICY_TYPE, `Policy type`, POLICY_VARIATION, `Policy changes`, TIME_PERIOD),
+    names_from = POLICY_DESCRIPTION,
+    values_from = OBS_VALUE
+  ) |>
+  distinct(REF_AREA, `Reference area`, COMMODITY, Commodity, POLICY_TYPE, `Policy type`, TIME_PERIOD) |>
+  mutate(Restriction_TF = POLICY_TYPE != "NO_RESTRICTION") |>
+  group_by(REF_AREA, `Reference area`, TIME_PERIOD) |>
+  summarize(`Number of Unique Policies on Unique Resource` = sum(Restriction_TF), .groups = "drop")
+```
+
+```{r}
+library(tidyverse)
+democracy_raw <- read_csv("data/EIU_DI_WIDEF.csv")
+glimpse(democracy_raw)
+
+democracy_countries <- democracy_raw |>
+  filter(
+    str_detect(REF_AREA, "^[A-Z]{3}$"),
+    REF_AREA != "WLD"
+  ) |>
+  select(
+    country_code = REF_AREA,
+    country_name = REF_AREA_LABEL,
+    matches("^[0-9]{4}$")
+  )
+
+glimpse(democracy_countries)
+
+# Clean democracy index and save to CSV in one pipeline
+democracy_tidy <- read_csv("data/EIU_DI_WIDEF.csv", show_col_types = FALSE) |>
+  filter(str_detect(REF_AREA, "^[A-Z]{3}$"), REF_AREA != "WLD") |>
+  select(country_code = REF_AREA, country_name = REF_AREA_LABEL, matches("^[0-9]{4}$")) #|>
+  #pivot_longer(cols = matches("^[0-9]{4}$"), names_to = "year", values_to = "democracy_index") |>
+ # mutate(year = as.integer(year)) |>
+ # arrange(country_name, year)
+
+
+
+dir.create("data", showWarnings = FALSE)
+#write_csv(democracy_tidy, "data/democracy_index_tidy.csv")
+
+democracy_tidy
 ```
 
 ```{r}
 #| label: data-joining
 
+# Name -> ISO3 overrides. Add any real countries that show up in `unmatched` below.
+
+# Year of democracy data to map
+dem_year <- 2024
+
+#Trade + population: add ISO3 codes, drop regions ("World", "Africa", ...)
+trade_pop_iso <- merchandise_population |>
+  mutate(iso3c = countrycode(Economy_Label, "country.name", "iso3c",
+                             custom_match = c("Kosovo" = "XKX"), warn = FALSE))
+
+#Labels that did NOT match. Aggregates here are fine; real countries go in `custom`.
+unmatched <- trade_pop_iso |> filter(is.na(iso3c)) |> select(Economy_Label)
+unmatched
+
+trade_pop_iso <- trade_pop_iso |>
+  filter(!is.na(iso3c)) |>
+  distinct(iso3c, .keep_all = TRUE) |>
+  select(-Economy_Label)
+
+#Democracy: ONE row per country (this fixes the duplicated polygons)
+#democracy_one_year <- democracy_tidy |>
+#  filter(year == dem_year) |>
+#  select(iso3c = country_code, democracy_index)
+
+#Map from the maps package, with ISO3 codes added
+custom_map <- c(custom,
+                "Trinidad" = "TTO", "Tobago" = "TTO",
+                "Antigua" = "ATG", "Barbuda" = "ATG",
+                "Saint Kitts" = "KNA", "Nevis" = "KNA",
+                "Grenadines" = "VCT")
+
 world_map <- maps::map("world", plot = FALSE, fill = TRUE) |>
-  st_as_sf()
+  st_as_sf() |>
+  mutate(clean_name = str_remove(ID, ":.*"),
+         iso3c = countrycode(clean_name, "country.name", "iso3c",
+                             custom_match = custom_map, warn = FALSE))
 
-merch_imp_clean <- merch_imp_data |>
-  rename_with(~ str_replace(.x, "_Millions_of_US_at_current_prices_Value", "_Imports"), -Economy_Label)
+# Map names that did NOT convert. Check this list, like `unmatched` above.
+map_unmatched <- world_map |> st_drop_geometry() |>
+  filter(is.na(iso3c)) |> distinct(clean_name) |> select(clean_name)
+map_unmatched
 
-merch_exp_clean <- merch_exp_data |>
-  rename_with(~ str_replace(.x, "_Millions_of_US_at_current_prices_Value", "_Exports"), -Economy_Label)
+world_map <- world_map |>
+  filter(!is.na(iso3c), iso3c != "ATA") |>
+  select(iso3c, clean_name)
 
-total_pop_clean <- total_pop_data |>
-  rename_with(~ str_replace(.x, "_Absolute_value_in_thousands_Value", "_Population"), -Economy_Label)
+#Join: map on the LEFT, one row per country on the right
+final_dataset_map <- world_map |>
+  left_join(trade_pop_iso, by = "iso3c") |>
+  left_join(democracy_tidy, by = join_by(iso3c == country_code))
 
-merchandise_population <- merch_imp_clean |>
-  full_join(merch_exp_clean, by = "Economy_Label") |>
-  full_join(total_pop_clean, by = "Economy_Label") |>
-  arrange()
+nrow(final_dataset_map)
 
-merch_map <- right_join(merchandise_population, world_map, by = join_by(Economy_Label == ID))
-  
-ggplot(merch_map, aes(geometry=geom, fill = `2025_Exports`)) +
-  geom_sf() +
+#Plots. Trade is in millions of USD, so 3,000,000 shows as "$3T"
+usd_labels <- scales::label_dollar(scale = 1e-6, suffix = "T")
+
+map_theme_layers <- list(theme_void(), labs(fill = NULL))
+
+ggplot(final_dataset_map) +
+  geom_sf(aes(fill = `2025_Exports`), linewidth = 0.1) +
   scale_fill_viridis(option = "magma", direction = -1,
-                     labels = scales::label_percent()) +
-  theme_void()
+                     labels = usd_labels, na.value = "grey80") +
+  labs(title = "Merchandise Exports, 2025") +
+  map_theme_layers
 
-ggplot(merch_map, aes(geometry=geom, fill = `2025_Imports`)) +
-  geom_sf() +
+ggplot(final_dataset_map) +
+  geom_sf(aes(fill = `2025_Imports`), linewidth = 0.1) +
   scale_fill_viridis(option = "magma", direction = -1,
-                     labels = scales::label_percent()) +
-  theme_void()
+                     labels = usd_labels, na.value = "grey80") +
+  labs(title = "Merchandise Imports, 2025") +
+  map_theme_layers
+
+ggplot(final_dataset_map) +
+  geom_sf(aes(fill = `2024`), linewidth = 0.1) +
+  scale_fill_viridis(option = "magma", direction = -1, na.value = "grey80") +
+  labs(title = paste("EIU Democracy Index,", dem_year)) +
+  map_theme_layers
+```
 ```
