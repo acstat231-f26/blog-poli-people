@@ -53,3 +53,4 @@ rsconnect/
 
 # large raw OECD download - not committed
 data/OECD.TAD.ADM,DSD_QDD_TAD_EXP_RESTRIC*.csv
+.Rproj.user
