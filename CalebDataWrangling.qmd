@@ -55,6 +55,13 @@ OECD_policies_unique <- OECD_policies |>
 OECD_country_years <- OECD_policies_unique |>
   group_by(REF_AREA, `Reference area`, TIME_PERIOD) |>
   summarize(`Number of Unique Policies on Unique Resource` = sum(Restriction_TF))
+
+#wrangle data so that each case represents a country with the number of unique policies 
+OECD_countries <- OECD_country_years |>
+  pivot_wider(
+    names_from = TIME_PERIOD,
+    values_from = `Number of Unique Policies on Unique Resource`
+  )
 ```
 
 The `echo: false` option disables the printing of code (only output is displayed).
