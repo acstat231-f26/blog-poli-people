@@ -141,10 +141,7 @@ OECD_country_years <- read_csv("data/OECD.TAD.ADM,DSD_QDD_TAD_EXP_RESTRIC@DF_QDD
 ```
 
 ```{r}
-library(tidyverse)
 democracy_raw <- read_csv("data/EIU_DI_WIDEF.csv")
-glimpse(democracy_raw)
-
 democracy_countries <- democracy_raw |>
   filter(
     str_detect(REF_AREA, "^[A-Z]{3}$"),
@@ -170,8 +167,6 @@ democracy_tidy <- read_csv("data/EIU_DI_WIDEF.csv", show_col_types = FALSE) |>
 
 dir.create("data", showWarnings = FALSE)
 #write_csv(democracy_tidy, "data/democracy_index_tidy.csv")
-
-democracy_tidy
 ```
 
 ```{r}
@@ -202,8 +197,7 @@ trade_pop_iso <- trade_pop_iso |>
 #  select(iso3c = country_code, democracy_index)
 
 #Map from the maps package, with ISO3 codes added
-custom_map <- c(custom,
-                "Trinidad" = "TTO", "Tobago" = "TTO",
+custom_map <- c("Trinidad" = "TTO", "Tobago" = "TTO",
                 "Antigua" = "ATG", "Barbuda" = "ATG",
                 "Saint Kitts" = "KNA", "Nevis" = "KNA",
                 "Grenadines" = "VCT")
@@ -230,7 +224,6 @@ final_dataset_map <- world_map |>
 
 nrow(final_dataset_map)
 
-#Plots. Trade is in millions of USD, so 3,000,000 shows as "$3T"
 usd_labels <- scales::label_dollar(scale = 1e-6, suffix = "T")
 
 map_theme_layers <- list(theme_void(), labs(fill = NULL))
