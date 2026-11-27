@@ -12,7 +12,7 @@ final_dataset_map <- readRDS("data/final_dataset_map.rds")
 ui <- fluidPage(
 
     # Application title
-    titlePanel("Old Faithful Geyser Data"),
+    titlePanel(""),
     
     # Sidebar with a slider input for number of bins 
     sidebarLayout(
